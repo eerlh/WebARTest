@@ -26,8 +26,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install --yes brotli
+          python3 -m pip install --disable-pip-version-check --quiet brotli
 
           mkdir -p _site
           rsync -a \
@@ -37,12 +36,19 @@ jobs:
             --exclude 'Build/*.br' \
             ./ _site/
 
-          brotli --decompress Build/weboutput.data.br \
-            --output _site/Build/weboutput.data
-          brotli --decompress Build/weboutput.framework.js.br \
-            --output _site/Build/weboutput.framework.js
-          brotli --decompress Build/weboutput.wasm.br \
-            --output _site/Build/weboutput.wasm
+          python3 - <<'PY'
+          from pathlib import Path
+          import brotli
+
+          for name in (
+              "weboutput.data",
+              "weboutput.framework.js",
+              "weboutput.wasm",
+          ):
+              source = Path("Build") / f"{name}.br"
+              destination = Path("_site/Build") / name
+              destination.write_bytes(brotli.decompress(source.read_bytes()))
+          PY
 
           sed -i \
             -e 's|Build/weboutput.data.br|Build/weboutput.data|g' \
